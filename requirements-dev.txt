@@ -112,7 +112,7 @@ gitpython==3.1.62
     # via mlflow-skinny
 google-auth==2.58.0
     # via databricks-sdk
-googleapis-common-protos==1.75.0
+googleapis-common-protos==1.75.3
     # via opentelemetry-exporter-otlp-proto-http
 graphene==3.4.3
     # via mlflow
