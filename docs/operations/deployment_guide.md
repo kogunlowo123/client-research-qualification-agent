@@ -122,7 +122,8 @@ first deployment.
 | `ALERT_EMAIL` | Job failure mailbox |
 | `ONCALL_NOTIFICATION_DESTINATION_ID` | Prod only: workspace notification destination for paging |
 | `APPLY_FM_GATEWAY` | `"true"` to re-apply FMAPI AI Gateway configuration during deploy |
-| SEC contact mailbox | The bundle variable `sec_contact_email` has no default and every job passes it as `--contact-email`. `cd.yml` exports it as `BUNDLE_VAR_sec_contact_email` from the GitHub variable `SEC_CONTACT_EMAIL`; set that variable on the `staging` and `prod` environments or deploys fail validation |
+| `DATABRICKS_DEPLOY_ENABLED` | Repository-level variable. `"true"` enables the `cd.yml` deploy jobs; until then they are skipped so forks and fresh clones stay green |
+| `SEC_CONTACT_EMAIL` | Contact mailbox for the SEC EDGAR User-Agent. `cd.yml` exports it as `BUNDLE_VAR_sec_contact_email` (bundle variable, no default, passed to every job as `--contact-email`); deploys fail validation without it |
 
 `cd.yml` exports `DATABRICKS_AUTH_TYPE=github-oidc` and
 `DATABRICKS_TOKEN_AUDIENCE=${{ vars.DATABRICKS_ACCOUNT_ID }}`, and requests

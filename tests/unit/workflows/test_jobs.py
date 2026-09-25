@@ -226,6 +226,15 @@ def test_ingest_requires_a_mode(patched_runtime: dict[str, Any]) -> None:
     args = ingest_job.build_parser().parse_args(["--environment", "local", "--company", ""])
     with pytest.raises(ConfigurationError, match="one of"):
         ingest_job.run(args)
+    both = ingest_job.build_parser().parse_args(
+        ["--environment", "local", "--company", "Acme", "--watchlist-table", "c.s.watchlist"]
+    )
+    with pytest.raises(ConfigurationError, match="one of"):
+        ingest_job.run(both)
+    blank_extra = ingest_job.build_parser().parse_args(
+        ["--environment", "local", "--sync-index-only", "--company", "", "--watchlist-table", ""]
+    )
+    ingest_job.validate_mode(blank_extra)
 
 
 # ------------------------------------------------------------------ brief

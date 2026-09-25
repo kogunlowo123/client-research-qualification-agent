@@ -10,6 +10,7 @@ name: CD
 #
 # Per-environment GitHub *variables* (Settings > Environments > <env>):
 #   DATABRICKS_HOST                      workspace URL
+#   DATABRICKS_DEPLOY_ENABLED            repository variable; set to 'true' once a workspace is provisioned (jobs skip otherwise)
 #   SEC_CONTACT_EMAIL                    contact address sent in the SEC EDGAR User-Agent (required)
 #   DATABRICKS_CLIENT_ID                 service principal application ID
 #   DATABRICKS_ACCOUNT_ID                account ID (OIDC token audience)
@@ -44,8 +45,9 @@ jobs:
   deploy-staging:
     name: Deploy staging
     if: >-
+      vars.DATABRICKS_DEPLOY_ENABLED == 'true' && (
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging')
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging'))
     runs-on: ubuntu-latest
     timeout-minutes: 120
     environment:
@@ -87,8 +89,9 @@ jobs:
   deploy-prod:
     name: Deploy prod
     if: >-
+      vars.DATABRICKS_DEPLOY_ENABLED == 'true' && (
       (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod')
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod'))
     runs-on: ubuntu-latest
     timeout-minutes: 150
     environment:

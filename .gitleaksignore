@@ -1,0 +1,2 @@
+# gitleaks false positive pinned to the initial commit: SEC EDGAR filename "nwnd-def14a.htm" in a test fixture
+55d06101fdad7a51792d95168a103dae5ada3ed7:tests/unit/research/fixtures/submissions.json:generic-api-key:15

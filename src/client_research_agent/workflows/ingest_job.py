@@ -55,10 +55,12 @@ class IngestTotals:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = base_parser("Refresh public-source evidence and the Vector Search index.")
-    mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--watchlist-table", type=optional_str, default=None)
-    mode.add_argument("--company", type=optional_str, default=None)
-    mode.add_argument("--sync-index-only", action="store_true")
+    # Exactly one mode is required, but it is validated in ``validate_mode`` rather than with
+    # an argparse mutually exclusive group: jobs pass empty strings for unused parameters and
+    # argparse's handling of "" in required groups differs across Python 3.12 patch releases.
+    parser.add_argument("--watchlist-table", type=optional_str, default=None)
+    parser.add_argument("--company", type=optional_str, default=None)
+    parser.add_argument("--sync-index-only", action="store_true")
     parser.add_argument("--domain", type=optional_str, default=None)
     parser.add_argument("--ticker", type=optional_str, default=None)
     parser.add_argument("--max-documents", type=int, default=40)
@@ -138,7 +140,15 @@ def ingest(
     return totals
 
 
+def validate_mode(args: argparse.Namespace) -> None:
+    """Require exactly one of --watchlist-table, --company or --sync-index-only (after ""->None)."""
+    selected = [bool(args.watchlist_table), bool(args.company), bool(args.sync_index_only)]
+    if sum(selected) != 1:
+        raise ConfigurationError("one of --watchlist-table, --company or --sync-index-only is required")
+
+
 def run(args: argparse.Namespace) -> int:
+    validate_mode(args)
     settings = settings_from_args(args)
     configure_job_observability(settings)
     runtime = build_runtime(settings, trigger_index_sync=False, track_runs=False)
