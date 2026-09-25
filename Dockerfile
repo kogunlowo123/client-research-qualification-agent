@@ -11,7 +11,7 @@
 
 ARG PYTHON_IMAGE=python:3.12-slim
 
-FROM ghcr.io/astral-sh/uv:0.12.7 AS uv
+FROM ghcr.io/astral-sh/uv:0.12.18 AS uv
 
 FROM ${PYTHON_IMAGE} AS builder
 COPY --from=uv /uv /usr/local/bin/uv
