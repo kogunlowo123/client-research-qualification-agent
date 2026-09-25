@@ -52,7 +52,11 @@ ENV PATH=/opt/venv/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     CRA_ENVIRONMENT=local
 
-RUN groupadd --system --gid 10001 cra \
+# The app runs from /opt/venv (built with uv); the base image's bundled pip is never used at
+# runtime and only widens the attack surface (and the vulnerability scan), so remove it.
+RUN python -m pip uninstall --yes --no-input pip \
+    && rm -rf /root/.cache \
+    && groupadd --system --gid 10001 cra \
     && useradd --system --uid 10001 --gid cra --home-dir /app --no-create-home --shell /usr/sbin/nologin cra \
     && mkdir -p /app/var \
     && chown -R cra:cra /app
