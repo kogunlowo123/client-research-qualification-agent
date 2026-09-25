@@ -1,0 +1,141 @@
+name: CD
+
+# Staging on every push to main; prod on a release tag (vX.Y.Z) behind the
+# `prod` GitHub environment (configure required reviewers on that environment).
+#
+# Databricks auth is GitHub OIDC workload identity federation: the workflow's
+# OIDC token is exchanged for a Databricks token of the environment's service
+# principal (federation policy created by deployment/terraform/identity.tf).
+# No Databricks secrets are stored in GitHub.
+#
+# Per-environment GitHub *variables* (Settings > Environments > <env>):
+#   DATABRICKS_HOST                      workspace URL
+#   SEC_CONTACT_EMAIL                    contact address sent in the SEC EDGAR User-Agent (required)
+#   DATABRICKS_CLIENT_ID                 service principal application ID
+#   DATABRICKS_ACCOUNT_ID                account ID (OIDC token audience)
+#   ALERT_EMAIL                          job failure mailbox
+#   ONCALL_NOTIFICATION_DESTINATION_ID   (prod) notification destination for paging
+#   APPLY_FM_GATEWAY                     "true" to (re)apply Foundation Model AI Gateway config
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [staging, prod]
+        default: staging
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-${{ github.event_name == 'workflow_dispatch' && inputs.environment || (startsWith(github.ref, 'refs/tags/') && 'prod' || 'staging') }}
+  cancel-in-progress: false
+
+env:
+  UV_VERSION: "0.12.7"
+  DATABRICKS_CLI_VERSION: "1.18.0"
+
+jobs:
+  deploy-staging:
+    name: Deploy staging
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment:
+      name: staging
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ vars.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_AUTH_TYPE: github-oidc
+      DATABRICKS_TOKEN_AUDIENCE: ${{ vars.DATABRICKS_ACCOUNT_ID }}
+      BUNDLE_VAR_service_principal_application_id: ${{ vars.DATABRICKS_CLIENT_ID }}
+      BUNDLE_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
+      BUNDLE_VAR_sec_contact_email: ${{ vars.SEC_CONTACT_EMAIL }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.12"
+      - uses: databricks/setup-cli@v1.18.0
+        with:
+          version: ${{ env.DATABRICKS_CLI_VERSION }}
+      - name: Verify identity
+        run: databricks current-user me --output json | jq -r '.userName'
+      - name: Validate and deploy bundle
+        run: |
+          args=()
+          if [[ "${{ vars.APPLY_FM_GATEWAY }}" == "true" ]]; then args+=(--apply-fm-gateway); fi
+          deployment/workflows/deploy.sh staging "${args[@]}"
+      - name: Log, evaluate, promote and deploy agent
+        run: databricks bundle run --target staging cra_agent_deploy --params action=log_and_deploy
+      - name: Quality gate (nightly evaluation job)
+        run: databricks bundle run --target staging cra_evaluation
+      - name: Smoke test serving endpoint
+        run: deployment/workflows/smoke_test.sh staging
+
+  deploy-prod:
+    name: Deploy prod
+    if: >-
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod')
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    environment:
+      name: prod
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ vars.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_AUTH_TYPE: github-oidc
+      DATABRICKS_TOKEN_AUDIENCE: ${{ vars.DATABRICKS_ACCOUNT_ID }}
+      BUNDLE_VAR_service_principal_application_id: ${{ vars.DATABRICKS_CLIENT_ID }}
+      BUNDLE_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
+      BUNDLE_VAR_sec_contact_email: ${{ vars.SEC_CONTACT_EMAIL }}
+      BUNDLE_VAR_oncall_notification_destination_id: ${{ vars.ONCALL_NOTIFICATION_DESTINATION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Require tag commit to be on main
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+            echo "::error::release tag ${GITHUB_REF_NAME} is not on main"
+            exit 1
+          }
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.12"
+      - uses: databricks/setup-cli@v1.18.0
+        with:
+          version: ${{ env.DATABRICKS_CLI_VERSION }}
+      - name: Verify identity
+        run: databricks current-user me --output json | jq -r '.userName'
+      - name: Validate and deploy bundle
+        run: |
+          args=()
+          if [[ "${{ vars.APPLY_FM_GATEWAY }}" == "true" ]]; then args+=(--apply-fm-gateway); fi
+          deployment/workflows/deploy.sh prod "${args[@]}"
+      - name: Log, evaluate, promote and deploy agent
+        run: databricks bundle run --target prod cra_agent_deploy --params action=log_and_deploy
+      - name: Smoke test serving endpoint
+        id: smoke
+        run: deployment/workflows/smoke_test.sh prod
+      - name: Roll back on failed smoke test
+        if: failure() && steps.smoke.outcome == 'failure'
+        run: deployment/workflows/rollback.sh prod --skip-smoke

@@ -1,0 +1,64 @@
+{
+  "name": "cra-agent-prod",
+  "model_alias": "champion",
+  "config": {
+    "served_entities": [
+      {
+        "name": "client_research_agent",
+        "entity_name": "client_research.agent_prod.client_research_agent",
+        "workload_size": "Medium",
+        "scale_to_zero_enabled": false,
+        "environment_vars": {
+          "CRA_ENVIRONMENT": "prod",
+          "ENABLE_MLFLOW_TRACING": "true",
+          "CRA_CRAWLER__CONTACT_EMAIL": "{{secrets/client-research-agent/sec-contact-email}}"
+        }
+      }
+    ],
+    "traffic_config": {
+      "routes": [
+        {
+          "served_model_name": "client_research_agent",
+          "traffic_percentage": 100
+        }
+      ]
+    }
+  },
+  "ai_gateway": {
+    "usage_tracking_config": {
+      "enabled": true
+    },
+    "inference_table_config": {
+      "enabled": true,
+      "catalog_name": "client_research",
+      "schema_name": "agent_prod",
+      "table_name_prefix": "cra_agent"
+    },
+    "rate_limits": [
+      {
+        "calls": 1200,
+        "key": "endpoint",
+        "renewal_period": "minute"
+      },
+      {
+        "calls": 60,
+        "key": "user",
+        "renewal_period": "minute"
+      }
+    ]
+  },
+  "tags": [
+    {
+      "key": "app",
+      "value": "client-research-agent"
+    },
+    {
+      "key": "environment",
+      "value": "prod"
+    },
+    {
+      "key": "cost_center",
+      "value": "client-research"
+    }
+  ]
+}

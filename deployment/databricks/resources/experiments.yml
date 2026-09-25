@@ -1,0 +1,18 @@
+# MLflow experiment that receives agent traces, evaluation runs and logged
+# agent models. In `mode: development` the CLI prefixes the name with
+# "[dev <user>]", so jobs receive the resolved name via
+# ${resources.experiments.cra_experiment.name} instead of hard-coding it.
+# Access follows the target-level permissions in databricks.yml.
+resources:
+  experiments:
+    cra_experiment:
+      name: /Shared/client-research-agent-${bundle.target}
+      tags:
+        - key: app
+          value: client-research-agent
+        - key: environment
+          value: ${bundle.target}
+        - key: mlflow.note.content
+          value: >-
+            Traces, GenAI evaluation runs and ResponsesAgent model versions for the
+            Client Research & Qualification Agent (${bundle.target}).

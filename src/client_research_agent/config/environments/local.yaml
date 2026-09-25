@@ -1,0 +1,9 @@
+databricks:
+  schema: agent_local
+observability:
+  json_logs: false
+  log_level: DEBUG
+  mlflow_tracing: false
+resilience:
+  max_attempts: 2
+  initial_backoff_seconds: 0.1

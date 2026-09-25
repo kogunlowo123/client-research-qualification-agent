@@ -1,0 +1,7 @@
+databricks:
+  schema: agent_dev
+vector_search:
+  endpoint_name: cra-vs-endpoint-dev
+observability:
+  log_level: DEBUG
+  mlflow_experiment: /Shared/client-research-agent-dev

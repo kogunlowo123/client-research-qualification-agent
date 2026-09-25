@@ -1,0 +1,15 @@
+databricks:
+  schema: agent_prod
+vector_search:
+  endpoint_name: cra-vs-endpoint-prod
+  pipeline_type: TRIGGERED
+observability:
+  log_level: INFO
+  mlflow_experiment: /Shared/client-research-agent-prod
+guardrails:
+  injection_block_threshold: 0.5
+  min_citation_support: 0.35
+resilience:
+  max_attempts: 5
+  breaker_failure_threshold: 5
+  breaker_reset_seconds: 60

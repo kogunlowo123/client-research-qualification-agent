@@ -1,0 +1,9 @@
+# Extends the default gitleaks ruleset. Allowlist entries are narrow and justified.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "SEC EDGAR primary-document filenames in test fixtures (e.g. nwnd-def14a.htm) trip the generic-api-key entropy rule"
+targetRules = ["generic-api-key"]
+paths = ['''^tests/unit/research/fixtures/submissions\.json$''']
+regexes = ['''[a-z]{2,8}-(?:def14a|10k|10q|8k|\d{8})\.htm''']

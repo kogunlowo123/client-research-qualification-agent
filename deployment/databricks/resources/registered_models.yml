@@ -1,0 +1,16 @@
+# Unity Catalog registered model for the agent. cra_agent_deploy logs new
+# versions into it, maintains the `challenger`, `champion` and
+# `previous_champion` aliases, and deploys `champion` to Model Serving.
+resources:
+  registered_models:
+    cra_agent:
+      catalog_name: ${var.catalog}
+      schema_name: ${var.schema}
+      name: client_research_agent
+      comment: >-
+        MLflow ResponsesAgent that researches a company from public sources and
+        returns a scored, cited client brief. Served by ${var.agent_endpoint_name}.
+      grants:
+        - principal: ${var.engineers_group}
+          privileges:
+            - EXECUTE

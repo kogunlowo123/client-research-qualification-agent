@@ -1,0 +1,13 @@
+# Allow-list: only what the image build needs enters the build context.
+*
+!pyproject.toml
+!README.md
+!LICENSE
+!requirements.txt
+!requirements-dev.txt
+!src/
+**/__pycache__/
+**/*.py[cod]
+**/.mypy_cache/
+**/.pytest_cache/
+**/.ruff_cache/

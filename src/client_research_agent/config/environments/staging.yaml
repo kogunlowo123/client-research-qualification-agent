@@ -1,0 +1,9 @@
+databricks:
+  schema: agent_staging
+vector_search:
+  endpoint_name: cra-vs-endpoint-staging
+observability:
+  log_level: INFO
+  mlflow_experiment: /Shared/client-research-agent-staging
+guardrails:
+  injection_block_threshold: 0.55

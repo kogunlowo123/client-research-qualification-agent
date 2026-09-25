@@ -1,0 +1,497 @@
+# Databricks Workflows for the Client Research & Qualification Agent.
+#
+# Every task is a serverless python_wheel_task that runs a console-script entry
+# point from the wheel built by the `cra_wheel` artifact. Entry points:
+#   cra-ingest        -> client_research_agent.workflows.ingest_job:main
+#   cra-brief         -> client_research_agent.workflows.brief_job:main
+#   cra-evaluate      -> client_research_agent.workflows.evaluation_job:main
+#   cra-deploy-agent  -> client_research_agent.workflows.deploy_agent_job:main
+#
+# Schedules are left unpaused by default; `mode: development` pauses them in dev.
+#
+# Task values contract (set with dbutils.jobs.taskValues.set):
+#   cra-ingest        -> run_id, documents_ingested, chunks_written
+#   cra-brief         -> brief_id, verdict, citation_coverage
+#   cra-deploy-agent  (--stage log) -> model_version
+resources:
+  jobs:
+    cra_ingestion_refresh:
+      name: cra-ingestion-refresh-${bundle.target}
+      description: >-
+        Daily refresh of public-source evidence (SEC EDGAR, investor relations,
+        newsroom) for every active company in companies_watchlist, followed by a
+        Vector Search Delta Sync of chunks_index.
+      tags:
+        app: client-research-agent
+        component: ingestion
+        environment: ${bundle.target}
+      max_concurrent_runs: 1
+      timeout_seconds: 14400
+      queue:
+        enabled: true
+      schedule:
+        quartz_cron_expression: "0 0 3 * * ?"
+        timezone_id: UTC
+      health:
+        rules:
+          - metric: RUN_DURATION_SECONDS
+            op: GREATER_THAN
+            value: 7200
+      email_notifications:
+        on_failure:
+          - ${var.alert_email}
+        on_duration_warning_threshold_exceeded:
+          - ${var.alert_email}
+      notification_settings:
+        no_alert_for_skipped_runs: true
+        no_alert_for_canceled_runs: true
+      environments:
+        - environment_key: cra_runtime
+          spec:
+            environment_version: "3"
+            dependencies:
+              - ../../../dist/*.whl
+              - databricks-sdk>=0.30
+              - databricks-vectorsearch>=0.40
+              - mlflow[databricks]>=3.1
+              - openai>=1.40
+      tasks:
+        - task_key: ingest_watchlist
+          environment_key: cra_runtime
+          timeout_seconds: 10800
+          max_retries: 2
+          min_retry_interval_millis: 300000
+          retry_on_timeout: false
+          python_wheel_task:
+            package_name: client_research_qualification_agent
+            entry_point: cra-ingest
+            parameters:
+              - --environment
+              - ${bundle.target}
+              - --contact-email
+              - ${var.sec_contact_email}
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+              - --vs-endpoint
+              - ${var.vs_endpoint}
+              - --watchlist-table
+              - ${var.catalog}.${var.schema}.companies_watchlist
+        - task_key: sync_index
+          depends_on:
+            - task_key: ingest_watchlist
+          environment_key: cra_runtime
+          timeout_seconds: 3600
+          max_retries: 3
+          min_retry_interval_millis: 120000
+          retry_on_timeout: true
+          python_wheel_task:
+            package_name: client_research_qualification_agent
+            entry_point: cra-ingest
+            parameters:
+              - --environment
+              - ${bundle.target}
+              - --contact-email
+              - ${var.sec_contact_email}
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+              - --vs-endpoint
+              - ${var.vs_endpoint}
+              - --sync-index-only
+
+    cra_brief_generation:
+      name: cra-brief-generation-${bundle.target}
+      description: >-
+        Researches one company end to end: ingest public sources, generate a
+        scored and cited client brief, then evaluate that brief against the
+        citation and groundedness quality gate.
+      tags:
+        app: client-research-agent
+        component: briefing
+        environment: ${bundle.target}
+      max_concurrent_runs: 10
+      timeout_seconds: 5400
+      queue:
+        enabled: true
+      parameters:
+        - name: company
+          default: ""
+        - name: domain
+          default: ""
+        - name: ticker
+          default: ""
+        - name: requested_by
+          default: workflow
+      health:
+        rules:
+          - metric: RUN_DURATION_SECONDS
+            op: GREATER_THAN
+            value: 2700
+      email_notifications:
+        on_failure:
+          - ${var.alert_email}
+        on_duration_warning_threshold_exceeded:
+          - ${var.alert_email}
+      notification_settings:
+        no_alert_for_skipped_runs: true
+        no_alert_for_canceled_runs: true
+      environments:
+        - environment_key: cra_runtime
+          spec:
+            environment_version: "3"
+            dependencies:
+              - ../../../dist/*.whl
+              - databricks-sdk>=0.30
+              - databricks-vectorsearch>=0.40
+              - mlflow[databricks]>=3.1
+              - openai>=1.40
+      tasks:
+        - task_key: ingest
+          environment_key: cra_runtime
+          timeout_seconds: 2700
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          retry_on_timeout: false
+          python_wheel_task:
+            package_name: client_research_qualification_agent
+            entry_point: cra-ingest
+            parameters:
+              - --environment
+              - ${bundle.target}
+              - --contact-email
+              - ${var.sec_contact_email}
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+              - --vs-endpoint
+              - ${var.vs_endpoint}
+              - --company
+              - "{{job.parameters.company}}"
+              - --domain
+              - "{{job.parameters.domain}}"
+              - --ticker
+              - "{{job.parameters.ticker}}"
+              - --sync-index
+        - task_key: brief
+          depends_on:
+            - task_key: ingest
+          environment_key: cra_runtime
+          timeout_seconds: 1800
+          max_retries: 1
+          min_retry_interval_millis: 60000
+          retry_on_timeout: false
+          python_wheel_task:
+            package_name: client_research_qualification_agent
+            entry_point: cra-brief
+            parameters:
+              - --environment
+              - ${bundle.target}
+              - --contact-email
+              - ${var.sec_contact_email}
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+              - --vs-endpoint
+              - ${var.vs_endpoint}
+              - --experiment
+              - ${resources.experiments.cra_experiment.name}
+              - --run-id
+              - "{{tasks.ingest.values.run_id}}"
+              - --company
+              - "{{job.parameters.company}}"
+              - --domain
+              - "{{job.parameters.domain}}"
+              - --ticker
+              - "{{job.parameters.ticker}}"
+              - --requested-by
+              - "{{job.parameters.requested_by}}"
+        - task_key: evaluate
+          depends_on:
+            - task_key: brief
+          environment_key: cra_runtime
+          timeout_seconds: 900
+          max_retries: 1
+          min_retry_interval_millis: 30000
+          retry_on_timeout: false
+          python_wheel_task:
+            package_name: client_research_qualification_agent
+            entry_point: cra-evaluate
+            parameters:
+              - --environment
+              - ${bundle.target}
+              - --contact-email
+              - ${var.sec_contact_email}
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+              - --experiment
+              - ${resources.experiments.cra_experiment.name}
+              - --mode
+              - brief
+              - --brief-id
+              - "{{tasks.brief.values.brief_id}}"
+              - --min-citation-coverage
+              - ${var.eval_min_citation_coverage}
+              - --fail-on-gate
+
+    cra_evaluation:
+      name: cra-evaluation-${bundle.target}
+      description: >-
+        Nightly MLflow GenAI evaluation of the champion agent against the
+        curated eval_set table. Fails the run (and alerts) when the quality gate
+        is not met; results land in eval_results and the MLflow experiment.
+      tags:
+        app: client-research-agent
+        component: evaluation
+        environment: ${bundle.target}
+      max_concurrent_runs: 1
+      timeout_seconds: 7200
+      queue:
+        enabled: true
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: UTC
+      health:
+        rules:
+          - metric: RUN_DURATION_SECONDS
+            op: GREATER_THAN
+            value: 3600
+      email_notifications:
+        on_failure:
+          - ${var.alert_email}
+        on_duration_warning_threshold_exceeded:
+          - ${var.alert_email}
+      notification_settings:
+        no_alert_for_skipped_runs: true
+        no_alert_for_canceled_runs: true
+      environments:
+        - environment_key: cra_runtime
+          spec:
+            environment_version: "3"
+            dependencies:
+              - ../../../dist/*.whl
+              - databricks-sdk>=0.30
+              - databricks-vectorsearch>=0.40
+              - mlflow[databricks]>=3.1
+              - openai>=1.40
+      tasks:
+        - task_key: evaluate_champion
+          environment_key: cra_runtime
+          timeout_seconds: 5400
+          max_retries: 1
+          min_retry_interval_millis: 300000
+          retry_on_timeout: false
+          python_wheel_task:
+            package_name: client_research_qualification_agent
+            entry_point: cra-evaluate
+            parameters:
+              - --environment
+              - ${bundle.target}
+              - --contact-email
+              - ${var.sec_contact_email}
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+              - --experiment
+              - ${resources.experiments.cra_experiment.name}
+              - --mode
+              - dataset
+              - --eval-table
+              - ${var.catalog}.${var.schema}.eval_set
+              - --results-table
+              - ${var.catalog}.${var.schema}.eval_results
+              - --model-uri
+              - models:/${var.catalog}.${var.schema}.${resources.registered_models.cra_agent.name}@champion
+              - --min-pass-rate
+              - ${var.eval_min_pass_rate}
+              - --min-citation-coverage
+              - ${var.eval_min_citation_coverage}
+              - --fail-on-gate
+
+    cra_agent_deploy:
+      name: cra-agent-deploy-${bundle.target}
+      description: >-
+        Logs the agent as an MLflow ResponsesAgent, registers it to Unity
+        Catalog, evaluates the candidate, promotes it to the `champion` alias
+        and deploys it with databricks.agents.deploy(). With
+        action=deploy_champion it redeploys whatever `champion` points to
+        (used by rollback).
+      tags:
+        app: client-research-agent
+        component: deployment
+        environment: ${bundle.target}
+      max_concurrent_runs: 1
+      timeout_seconds: 7200
+      queue:
+        enabled: true
+      parameters:
+        - name: action
+          default: log_and_deploy
+      health:
+        rules:
+          - metric: RUN_DURATION_SECONDS
+            op: GREATER_THAN
+            value: 5400
+      email_notifications:
+        on_failure:
+          - ${var.alert_email}
+        on_success:
+          - ${var.alert_email}
+        on_duration_warning_threshold_exceeded:
+          - ${var.alert_email}
+      notification_settings:
+        no_alert_for_skipped_runs: true
+        no_alert_for_canceled_runs: false
+      environments:
+        - environment_key: cra_runtime
+          spec:
+            environment_version: "3"
+            dependencies:
+              - ../../../dist/*.whl
+              - databricks-sdk>=0.30
+              - databricks-vectorsearch>=0.40
+              - databricks-agents>=1.0
+              - mlflow[databricks]>=3.1
+              - openai>=1.40
+      tasks:
+        - task_key: route_action
+          condition_task:
+            op: EQUAL_TO
+            left: "{{job.parameters.action}}"
+            right: log_and_deploy
+        - task_key: log_and_register
+          depends_on:
+            - task_key: route_action
+              outcome: "true"
+          environment_key: cra_runtime
+          timeout_seconds: 1800
+          max_retries: 1
+          min_retry_interval_millis: 60000
+          python_wheel_task:
+            package_name: client_research_qualification_agent
+            entry_point: cra-deploy-agent
+            parameters:
+              - --environment
+              - ${bundle.target}
+              - --contact-email
+              - ${var.sec_contact_email}
+              - --stage
+              - log
+              - --uc-model
+              - ${var.catalog}.${var.schema}.${resources.registered_models.cra_agent.name}
+              - --experiment
+              - ${resources.experiments.cra_experiment.name}
+              - --vs-endpoint
+              - ${var.vs_endpoint}
+              - --vs-index
+              - ${var.catalog}.${var.schema}.chunks_index
+        - task_key: evaluate_candidate
+          depends_on:
+            - task_key: log_and_register
+          environment_key: cra_runtime
+          timeout_seconds: 3600
+          max_retries: 0
+          python_wheel_task:
+            package_name: client_research_qualification_agent
+            entry_point: cra-evaluate
+            parameters:
+              - --environment
+              - ${bundle.target}
+              - --contact-email
+              - ${var.sec_contact_email}
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+              - --experiment
+              - ${resources.experiments.cra_experiment.name}
+              - --mode
+              - dataset
+              - --eval-table
+              - ${var.catalog}.${var.schema}.eval_set
+              - --results-table
+              - ${var.catalog}.${var.schema}.eval_results
+              - --model-uri
+              - models:/${var.catalog}.${var.schema}.${resources.registered_models.cra_agent.name}/{{tasks.log_and_register.values.model_version}}
+              - --min-pass-rate
+              - ${var.eval_min_pass_rate}
+              - --min-citation-coverage
+              - ${var.eval_min_citation_coverage}
+              - --fail-on-gate
+        - task_key: promote_and_deploy
+          depends_on:
+            - task_key: evaluate_candidate
+          environment_key: cra_runtime
+          timeout_seconds: 3600
+          max_retries: 1
+          min_retry_interval_millis: 120000
+          python_wheel_task:
+            package_name: client_research_qualification_agent
+            entry_point: cra-deploy-agent
+            parameters:
+              - --environment
+              - ${bundle.target}
+              - --contact-email
+              - ${var.sec_contact_email}
+              - --stage
+              - promote
+              - --uc-model
+              - ${var.catalog}.${var.schema}.${resources.registered_models.cra_agent.name}
+              - --model-version
+              - "{{tasks.log_and_register.values.model_version}}"
+              - --endpoint-name
+              - ${var.agent_endpoint_name}
+              - --endpoint-config
+              - ${workspace.file_path}/deployment/serving/agent_endpoint.${bundle.target}.json
+        - task_key: redeploy_champion
+          depends_on:
+            - task_key: route_action
+              outcome: "false"
+          environment_key: cra_runtime
+          timeout_seconds: 3600
+          max_retries: 1
+          min_retry_interval_millis: 120000
+          python_wheel_task:
+            package_name: client_research_qualification_agent
+            entry_point: cra-deploy-agent
+            parameters:
+              - --environment
+              - ${bundle.target}
+              - --contact-email
+              - ${var.sec_contact_email}
+              - --stage
+              - deploy-champion
+              - --uc-model
+              - ${var.catalog}.${var.schema}.${resources.registered_models.cra_agent.name}
+              - --endpoint-name
+              - ${var.agent_endpoint_name}
+              - --endpoint-config
+              - ${workspace.file_path}/deployment/serving/agent_endpoint.${bundle.target}.json
+
+targets:
+  prod:
+    resources:
+      jobs:
+        cra_brief_generation:
+          webhook_notifications:
+            on_failure:
+              - id: ${var.oncall_notification_destination_id}
+        cra_ingestion_refresh:
+          webhook_notifications:
+            on_failure:
+              - id: ${var.oncall_notification_destination_id}
+        cra_evaluation:
+          webhook_notifications:
+            on_failure:
+              - id: ${var.oncall_notification_destination_id}
+        cra_agent_deploy:
+          webhook_notifications:
+            on_failure:
+              - id: ${var.oncall_notification_destination_id}

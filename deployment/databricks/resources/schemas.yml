@@ -1,0 +1,24 @@
+# Monitoring schema owned by the bundle. It receives Lakehouse Monitoring
+# profile/drift metric tables for the agent inference table and the briefs
+# table. The environment schema itself (agent_dev / agent_staging /
+# agent_prod) and its tables are owned by Terraform and
+# infrastructure/unity_catalog; the deploying service principal needs
+# CREATE_SCHEMA on the catalog, which Terraform grants.
+resources:
+  schemas:
+    cra_monitoring:
+      catalog_name: ${var.catalog}
+      name: ${var.schema}_monitoring
+      comment: Lakehouse Monitoring metric tables and dashboards for the Client Research Agent.
+      properties:
+        app: client-research-agent
+        environment: ${bundle.target}
+      grants:
+        - principal: ${var.engineers_group}
+          privileges:
+            - USE_SCHEMA
+            - SELECT
+        - principal: ${var.analysts_group}
+          privileges:
+            - USE_SCHEMA
+            - SELECT

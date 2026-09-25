@@ -1,0 +1,37 @@
+{
+  "endpoint": {
+    "name_template": "cra-vs-endpoint-{environment}",
+    "endpoint_type": "STANDARD"
+  },
+  "index": {
+    "name_template": "{catalog}.{schema}.chunks_index",
+    "source_table_template": "{catalog}.{schema}.chunks",
+    "primary_key": "chunk_id",
+    "index_type": "DELTA_SYNC",
+    "pipeline_type": "TRIGGERED",
+    "embedding_vector_column": {
+      "name": "embedding",
+      "embedding_dimension": 1024
+    },
+    "columns_to_sync": [
+      "chunk_id",
+      "doc_id",
+      "text",
+      "company",
+      "url",
+      "title",
+      "document_type",
+      "source_domain",
+      "chunk_index",
+      "strategy",
+      "parent_id",
+      "publication_date",
+      "industry",
+      "confidence",
+      "token_count",
+      "entities_json",
+      "contextual_header",
+      "metadata_json"
+    ]
+  }
+}

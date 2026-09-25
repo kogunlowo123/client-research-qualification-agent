@@ -1,0 +1,110 @@
+{
+  "endpoints": [
+    {
+      "name": "databricks-claude-sonnet-4",
+      "ai_gateway": {
+        "usage_tracking_config": {
+          "enabled": true
+        },
+        "inference_table_config": {
+          "enabled": true,
+          "catalog_name": "client_research",
+          "schema_name": "agent_staging",
+          "table_name_prefix": "fm_claude_sonnet_4"
+        },
+        "rate_limits": [
+          {
+            "calls": 600,
+            "key": "endpoint",
+            "renewal_period": "minute"
+          },
+          {
+            "calls": 120,
+            "key": "user",
+            "renewal_period": "minute"
+          }
+        ],
+        "guardrails": {
+          "input": {
+            "safety": true,
+            "pii": {
+              "behavior": "MASK"
+            }
+          },
+          "output": {
+            "safety": true,
+            "pii": {
+              "behavior": "MASK"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "databricks-meta-llama-3-3-70b-instruct",
+      "ai_gateway": {
+        "usage_tracking_config": {
+          "enabled": true
+        },
+        "inference_table_config": {
+          "enabled": true,
+          "catalog_name": "client_research",
+          "schema_name": "agent_staging",
+          "table_name_prefix": "fm_llama_3_3_70b"
+        },
+        "rate_limits": [
+          {
+            "calls": 600,
+            "key": "endpoint",
+            "renewal_period": "minute"
+          },
+          {
+            "calls": 120,
+            "key": "user",
+            "renewal_period": "minute"
+          }
+        ],
+        "guardrails": {
+          "input": {
+            "safety": true,
+            "pii": {
+              "behavior": "MASK"
+            }
+          },
+          "output": {
+            "safety": true,
+            "pii": {
+              "behavior": "MASK"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "databricks-gte-large-en",
+      "ai_gateway": {
+        "usage_tracking_config": {
+          "enabled": true
+        },
+        "inference_table_config": {
+          "enabled": true,
+          "catalog_name": "client_research",
+          "schema_name": "agent_staging",
+          "table_name_prefix": "fm_gte_large_en"
+        },
+        "rate_limits": [
+          {
+            "calls": 2400,
+            "key": "endpoint",
+            "renewal_period": "minute"
+          },
+          {
+            "calls": 480,
+            "key": "user",
+            "renewal_period": "minute"
+          }
+        ]
+      }
+    }
+  ]
+}

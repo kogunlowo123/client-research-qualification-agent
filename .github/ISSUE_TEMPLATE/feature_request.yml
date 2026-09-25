@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a new capability or improvement
+labels: [enhancement, triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or operational problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: areas
+    attributes:
+      label: Affected areas
+      options:
+        - label: Ingestion / sources
+        - label: Retrieval / Vector Search
+        - label: Qualification scoring / briefs
+        - label: Evaluation / monitoring
+        - label: Deployment / infrastructure

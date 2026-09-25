@@ -1,0 +1,20 @@
+# Shared defaults for every environment. No secrets here, ever.
+databricks:
+  catalog: client_research
+  secret_scope: client-research-agent
+serving:
+  chat_endpoint: databricks-claude-sonnet-4
+  fallback_chat_endpoint: databricks-meta-llama-3-3-70b-instruct
+  judge_endpoint: databricks-claude-sonnet-4
+  embedding_endpoint: databricks-gte-large-en
+  embedding_dimension: 1024
+vector_search:
+  endpoint_name: cra-vs-endpoint
+  index_name: chunks_index
+  source_table: chunks
+crawler:
+  allowed_domain_suffixes: ["sec.gov"]
+  requests_per_second_per_host: 1.0
+observability:
+  service_name: client-research-agent
+  json_logs: true

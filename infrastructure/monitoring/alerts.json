@@ -1,0 +1,60 @@
+{
+  "alerts": {
+    "agent_latency_p95": {
+      "display_name": "cra-{environment} agent p95 latency",
+      "description": "p95 end-to-end latency of cra-agent-{environment} over the last hour exceeds 60 s.",
+      "operator": "GREATER_THAN",
+      "threshold": 60000,
+      "schedule": "0 */10 * * * ?",
+      "retrigger_seconds": 3600
+    },
+    "agent_error_rate": {
+      "display_name": "cra-{environment} agent 5xx error rate",
+      "description": "More than 2% of requests to cra-agent-{environment} returned 5xx in the last hour.",
+      "operator": "GREATER_THAN",
+      "threshold": 0.02,
+      "schedule": "0 */10 * * * ?",
+      "retrigger_seconds": 3600
+    },
+    "citation_coverage_daily": {
+      "display_name": "cra-{environment} citation coverage",
+      "description": "Mean citation coverage of briefs generated in the last 24 h fell below 0.90.",
+      "operator": "LESS_THAN",
+      "threshold": 0.9,
+      "schedule": "0 0 7 * * ?",
+      "retrigger_seconds": 86400
+    },
+    "not_enough_evidence_share": {
+      "display_name": "cra-{environment} not-enough-evidence share",
+      "description": "More than 40% of briefs in the last 7 days had verdict not_enough_evidence (ingestion or retrieval regression).",
+      "operator": "GREATER_THAN",
+      "threshold": 0.4,
+      "schedule": "0 0 7 * * ?",
+      "retrigger_seconds": 86400
+    },
+    "guardrail_blocks_hourly": {
+      "display_name": "cra-{environment} guardrail blocks",
+      "description": "More than 20 requests were blocked by guardrails in the last hour (possible abuse or injection campaign).",
+      "operator": "GREATER_THAN",
+      "threshold": 20,
+      "schedule": "0 */15 * * * ?",
+      "retrigger_seconds": 3600
+    },
+    "serving_cost_usd_daily": {
+      "display_name": "cra-{environment} daily serving cost",
+      "description": "Yesterday's list-price spend attributed to the agent exceeded the daily cost ceiling.",
+      "operator": "GREATER_THAN",
+      "threshold": 150,
+      "schedule": "0 0 8 * * ?",
+      "retrigger_seconds": 86400
+    },
+    "eval_gate_failed": {
+      "display_name": "cra-{environment} evaluation quality gate",
+      "description": "An MLflow evaluation run in the last 24 h failed the quality gate.",
+      "operator": "GREATER_THAN",
+      "threshold": 0,
+      "schedule": "0 30 7 * * ?",
+      "retrigger_seconds": 86400
+    }
+  }
+}

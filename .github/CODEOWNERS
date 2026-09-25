@@ -1,0 +1,8 @@
+# Default owner for everything in the repository.
+* @kogunlowo123
+
+# Infrastructure, deployment and CI changes need owner review explicitly.
+/deployment/ @kogunlowo123
+/infrastructure/ @kogunlowo123
+/.github/ @kogunlowo123
+/databricks.yml @kogunlowo123

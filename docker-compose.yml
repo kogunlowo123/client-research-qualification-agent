@@ -1,0 +1,82 @@
+# Local stack: the agent (CRA_ENVIRONMENT=local, no Databricks dependency), an
+# MLflow tracking server, an OpenTelemetry Collector and Jaeger for traces.
+#
+#   docker compose up -d mlflow otel-collector jaeger
+#   docker compose run --rm agent research --company "Microsoft Corporation" --ticker MSFT --domain microsoft.com
+#
+# UIs: MLflow http://localhost:5000 - Jaeger http://localhost:16686
+name: client-research-agent
+
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: client-research-agent:local
+    command: ["serve-check"]
+    environment:
+      CRA_ENVIRONMENT: local
+      CRA_OBSERVABILITY__OTLP_ENDPOINT: http://otel-collector:4318
+      CRA_OBSERVABILITY__JSON_LOGS: "true"
+      OTEL_SERVICE_NAME: client-research-agent
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - agent-var:/app/var
+    depends_on:
+      mlflow:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.16.1
+    command:
+      - mlflow
+      - server
+      - --host=0.0.0.0
+      - --port=5000
+      - --backend-store-uri=sqlite:////mlflow/mlflow.db
+      - --artifacts-destination=/mlflow/artifacts
+      - --serve-artifacts
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - mlflow-data:/mlflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.135.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./infrastructure/monitoring/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:8889:8889"
+      - "127.0.0.1:13133:13133"
+    depends_on:
+      - jaeger
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.73.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "127.0.0.1:16686:16686"
+
+volumes:
+  agent-var:
+  mlflow-data:

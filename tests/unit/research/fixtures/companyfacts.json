@@ -1,0 +1,36 @@
+{
+  "cik": 1234567,
+  "entityName": "Northwind Industries, Inc.",
+  "facts": {
+    "dei": {
+      "EntityCommonStockSharesOutstanding": {
+        "label": "Entity Common Stock, Shares Outstanding",
+        "units": {"shares": [
+          {"end": "2025-07-25", "val": 410000000, "accn": "0001234567-25-000031", "fy": 2025, "fp": "Q2", "form": "10-Q", "filed": "2025-08-05"},
+          {"end": "2026-02-06", "val": 405500000, "accn": "0001234567-26-000012", "fy": 2025, "fp": "FY", "form": "10-K", "filed": "2026-02-13"}
+        ]}
+      },
+      "EntityNumberOfEmployees": {
+        "units": {"employee": [
+          {"end": "2025-12-31", "val": 42000, "fy": 2025, "fp": "FY", "form": "10-K", "filed": "2026-02-13"}
+        ]}
+      }
+    },
+    "us-gaap": {
+      "Revenues": {
+        "units": {"USD": [
+          {"start": "2023-01-01", "end": "2023-12-31", "val": 10900000000, "fy": 2023, "fp": "FY", "form": "10-K", "filed": "2024-02-14"}
+        ]}
+      },
+      "RevenueFromContractWithCustomerExcludingAssessedTax": {
+        "units": {"USD": [
+          {"start": "2024-01-01", "end": "2024-12-31", "val": 11480000000, "fy": 2024, "fp": "FY", "form": "10-K", "filed": "2025-02-13"},
+          {"start": "2025-10-01", "end": "2025-12-31", "val": 3300000000, "fy": 2025, "fp": "Q4", "form": "10-K", "filed": "2026-02-13"},
+          {"start": "2025-01-01", "end": "2025-12-31", "val": 12400000000, "fy": 2025, "fp": "FY", "form": "10-K", "filed": "2026-02-13"},
+          {"start": "2025-01-01", "end": "2025-12-31", "val": "bad", "fy": 2025, "fp": "FY", "form": "10-K", "filed": "2026-02-13"},
+          "not-an-entry"
+        ]}
+      }
+    }
+  }
+}

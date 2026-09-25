@@ -1,0 +1,130 @@
+# Databricks Asset Bundle for the Client Research & Qualification Agent.
+#
+#   databricks bundle validate -t dev
+#   databricks bundle deploy   -t staging
+#   databricks bundle run      -t staging cra_evaluation
+#
+# Platform resources that outlive a bundle deployment (catalog, per-environment
+# schema, volumes, grants, Vector Search endpoint/index, SQL warehouse, service
+# principal, secret scope) are owned by Terraform in deployment/terraform.
+# The bundle owns the wheel, jobs, the MLflow experiment, the UC registered
+# model and the monitoring schema.
+bundle:
+  name: client-research-qualification-agent
+  databricks_cli_version: ">= 0.250.0"
+
+include:
+  - deployment/databricks/resources/*.yml
+
+artifacts:
+  cra_wheel:
+    type: whl
+    path: .
+    build: uv build --wheel --out-dir dist
+
+# deployment/serving/*.json and infrastructure/** are synced to
+# ${workspace.file_path} so jobs can read endpoint and DDL definitions.
+sync:
+  exclude:
+    - tests/**
+    - .github/**
+    - deployment/terraform/**
+
+variables:
+  catalog:
+    description: Unity Catalog catalog that holds every agent schema.
+    default: client_research
+  schema:
+    description: Environment schema (agent_dev / agent_staging / agent_prod).
+    default: agent_dev
+  warehouse_id:
+    description: Serverless SQL warehouse used for alerts, dashboards and Lakehouse Monitoring.
+    lookup:
+      warehouse: cra-sql-dev
+  vs_endpoint:
+    description: Mosaic AI Vector Search endpoint serving chunks_index.
+    default: cra-vs-endpoint-dev
+  agent_endpoint_name:
+    description: Model Serving endpoint the agent is deployed to by databricks.agents.deploy().
+    default: cra-agent-dev
+  service_principal_application_id:
+    description: Application (client) ID of the deployment service principal. Supplied by CI as BUNDLE_VAR_service_principal_application_id.
+    default: ""
+  alert_email:
+    description: Mailbox that receives job failure and duration alerts. Supplied by CI as BUNDLE_VAR_alert_email.
+    default: ""
+  oncall_notification_destination_id:
+    description: >-
+      ID of the workspace notification destination (Slack/PagerDuty/webhook) that
+      pages on-call for prod job failures. Required for the prod target; supplied
+      by CI as BUNDLE_VAR_oncall_notification_destination_id.
+    default: ""
+  engineers_group:
+    description: Workspace/account group of agent engineers.
+    default: cra-engineers
+  analysts_group:
+    description: Workspace/account group of business analysts that read briefs.
+    default: cra-analysts
+  sec_contact_email:
+    description: >-
+      Monitored mailbox sent in the From header of SEC EDGAR and corporate-site requests
+      (SEC fair-access policy). No default: supply it per target (BUNDLE_VAR_sec_contact_email).
+      Model Serving reads the same address from the secret client-research-agent/sec-contact-email.
+  eval_min_pass_rate:
+    description: Minimum fraction of evaluation rows that must pass every judge for the quality gate.
+    default: "0.85"
+  eval_min_citation_coverage:
+    description: Minimum mean citation coverage for the quality gate.
+    default: "0.90"
+
+targets:
+  dev:
+    mode: development
+    default: true
+    variables:
+      schema: agent_dev
+      vs_endpoint: cra-vs-endpoint-dev
+      agent_endpoint_name: cra-agent-dev
+      alert_email: ${workspace.current_user.userName}
+
+  staging:
+    mode: production
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+    run_as:
+      service_principal_name: ${var.service_principal_application_id}
+    variables:
+      schema: agent_staging
+      vs_endpoint: cra-vs-endpoint-staging
+      agent_endpoint_name: cra-agent-staging
+      warehouse_id:
+        lookup:
+          warehouse: cra-sql-staging
+    permissions:
+      - level: CAN_MANAGE
+        service_principal_name: ${var.service_principal_application_id}
+      - level: CAN_MANAGE
+        group_name: ${var.engineers_group}
+      - level: CAN_VIEW
+        group_name: ${var.analysts_group}
+
+  prod:
+    mode: production
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+    run_as:
+      service_principal_name: ${var.service_principal_application_id}
+    variables:
+      schema: agent_prod
+      vs_endpoint: cra-vs-endpoint-prod
+      agent_endpoint_name: cra-agent-prod
+      warehouse_id:
+        lookup:
+          warehouse: cra-sql-prod
+    permissions:
+      - level: CAN_MANAGE
+        service_principal_name: ${var.service_principal_application_id}
+      - level: CAN_VIEW
+        group_name: ${var.engineers_group}
+      - level: CAN_VIEW
+        group_name: ${var.analysts_group}

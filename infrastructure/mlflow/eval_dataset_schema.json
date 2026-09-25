@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kogunlowo123/client-research-qualification-agent/infrastructure/mlflow/eval_dataset_schema.json",
+  "title": "Client Research Agent evaluation record",
+  "description": "One row of the eval_set table, in the shape consumed by mlflow.genai.evaluate (inputs / expectations / tags).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eval_id", "inputs", "expectations"],
+  "properties": {
+    "eval_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier; primary key of eval_set."
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["company_name"],
+      "properties": {
+        "company_name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "domain": { "type": ["string", "null"], "maxLength": 253 },
+        "ticker": { "type": ["string", "null"], "maxLength": 10 },
+        "cik": { "type": ["string", "null"], "pattern": "^[0-9]{1,10}$" },
+        "industry": { "type": ["string", "null"], "maxLength": 120 },
+        "max_documents": { "type": "integer", "minimum": 1, "maximum": 500 }
+      }
+    },
+    "expectations": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "expected_verdict": {
+          "type": ["string", "null"],
+          "enum": ["good_fit", "potential_fit", "not_enough_evidence", null]
+        },
+        "expected_facts": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Facts a correct brief must state; scored with the MLflow Correctness judge."
+        },
+        "guidelines": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Natural-language rules scored with the MLflow Guidelines judge."
+        },
+        "min_citation_coverage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Slicing tags such as industry, difficulty or source_mix."
+    }
+  }
+}
