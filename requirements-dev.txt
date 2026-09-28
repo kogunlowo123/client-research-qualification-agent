@@ -389,7 +389,7 @@ rich==15.0.0
     # via
     #   bandit
     #   pip-audit
-ruff==0.16.8
+ruff==0.16.9
     # via client-research-qualification-agent (pyproject.toml)
 scikit-learn==1.9.1
     # via
