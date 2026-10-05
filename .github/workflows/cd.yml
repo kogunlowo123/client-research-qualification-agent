@@ -69,7 +69,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           python-version: "3.12"
-      - uses: databricks/setup-cli@v1.18.0
+      - uses: databricks/setup-cli@v1.19.0
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
       - name: Verify identity
@@ -124,7 +124,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           python-version: "3.12"
-      - uses: databricks/setup-cli@v1.18.0
+      - uses: databricks/setup-cli@v1.19.0
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
       - name: Verify identity
