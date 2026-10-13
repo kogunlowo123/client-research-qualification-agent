@@ -65,11 +65,11 @@ jobs:
       BUNDLE_VAR_sec_contact_email: ${{ vars.SEC_CONTACT_EMAIL }}
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
           python-version: "3.12"
-      - uses: databricks/setup-cli@v1.18.0
+      - uses: databricks/setup-cli@v1.20.0
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
       - name: Verify identity
@@ -120,11 +120,11 @@ jobs:
             echo "::error::release tag ${GITHUB_REF_NAME} is not on main"
             exit 1
           }
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
           python-version: "3.12"
-      - uses: databricks/setup-cli@v1.18.0
+      - uses: databricks/setup-cli@v1.20.0
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
       - name: Verify identity
