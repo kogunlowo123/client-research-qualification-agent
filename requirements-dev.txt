@@ -73,14 +73,14 @@ cycler==0.12.1
     # via matplotlib
 cyclonedx-python-lib==11.12.0
     # via pip-audit
-databricks-ai-search==0.78
+databricks-ai-search==0.82
     # via databricks-vectorsearch
-databricks-sdk==0.141.0
+databricks-sdk==0.158.0
     # via
     #   client-research-qualification-agent (pyproject.toml)
     #   mlflow-skinny
     #   mlflow-tracing
-databricks-vectorsearch==0.75
+databricks-vectorsearch==0.82
     # via client-research-qualification-agent (pyproject.toml)
 defusedxml==0.7.1
     # via py-serializable
@@ -190,14 +190,14 @@ matplotlib==3.11.2
     # via mlflow
 mdurl==0.1.2
     # via markdown-it-py
-mlflow==3.16.1
+mlflow==3.17.2
     # via client-research-qualification-agent (pyproject.toml)
-mlflow-skinny==3.16.1
+mlflow-skinny==3.17.2
     # via
     #   databricks-ai-search
     #   databricks-vectorsearch
     #   mlflow
-mlflow-tracing==3.16.1
+mlflow-tracing==3.17.2
     # via mlflow
 msgpack==1.2.2
     # via cachecontrol
